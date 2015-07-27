@@ -6335,6 +6335,7 @@ exports.readData = function readData (b, type, flags, major) {
   var output = []
   var nullTerminatorLength = getNullTerminatorLength(encoding)
   var fzero
+  var tag = type
 
   if (type[0] === 'T') {
     type = 'T*'
@@ -6343,8 +6344,12 @@ exports.readData = function readData (b, type, flags, major) {
   switch (type) {
     case 'T*':
       var text = decodeString(b.slice(1), encoding).replace(/\x00+$/, '')
-      // id3v2.4 defines that multiple T* values are separated by 0x00
-      output = text.split(/\x00/g)
+      if (tag == 'TCP'){
+        output = [Boolean(text)]
+      } else {
+        // id3v2.4 defines that multiple T* values are separated by 0x00
+        output = text.split(/\x00/g)
+      }
       break
 
     case 'PIC':
@@ -6629,7 +6634,8 @@ module.exports = function (stream, opts, callback) {
     genre: [],
     disk: { no: 0, of: 0 },
     picture: [],
-    duration: 0
+    duration: 0,
+    compilation: false
   }
 
   var aliased = {}
@@ -6674,7 +6680,8 @@ module.exports = function (stream, opts, callback) {
       if (aliased.hasOwnProperty(_alias)) {
         var val
         if (_alias === 'title' || _alias === 'album' ||
-          _alias === 'year' || _alias === 'duration') {
+          _alias === 'year' || _alias === 'duration' ||
+          _alias === 'compilation') {
           val = aliased[_alias][0]
         } else {
           val = aliased[_alias]
@@ -6762,7 +6769,8 @@ function lookupAlias (event) {
     ['picture', 'APIC', 'PIC', 'covr', 'METADATA_BLOCK_PICTURE', 'Cover Art (Front)',
     'Cover Art (Back)'],
     ['composer', 'TCOM', 'TCM', '©wrt', 'COMPOSER'],
-    ['duration']
+    ['duration'],
+    ['compilation', 'TCP']
   ]
 
   return mappings.reduce(function (a, b) {
