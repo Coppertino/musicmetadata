@@ -5290,7 +5290,7 @@ function ContentDescriptionObjectState (nextState, size) {
   this.size = size
 }
 
-var contentDescTags = ['Title', 'Author', 'Copyright', 'Description', 'Rating']
+var contentDescTags = ['Title', 'Author', 'Copyright', 'Description', 'Rating', 'Compilation']
 ContentDescriptionObjectState.prototype.parse = function (callback, data, done) {
   var lengths = [
     data.readUInt16LE(0),
@@ -5306,6 +5306,9 @@ ContentDescriptionObjectState.prototype.parse = function (callback, data, done) 
     var end = pos + length
     if (length > 0) {
       var value = parseUnicodeAttr(data.slice(pos, end))
+      if (tagName == 'Compilation'){
+        value = Boolean(value)
+      }
       callback(tagName, value)
     }
     pos = end
@@ -5358,6 +5361,9 @@ ExtendedContentDescriptionObjectState.prototype.parse = function (callback, data
       return finishedState
     }
     var attr = parseAttr(value)
+    if (name == 'Compilation'){
+      attr = Boolean(attr)
+    }
     callback(name, attr)
   }
   if (this.nextState === finishedState) done()
@@ -5843,12 +5849,14 @@ BlockDataState.prototype.parse = function (callback, data) {
     var commentListLength = decoder.readInt32()
     var comment
     var split
+    var tag
     var i
 
     for (i = 0; i < commentListLength; i++) {
       comment = decoder.readStringUtf8()
       split = comment.split('=')
-      callback(split[0].toUpperCase(), split[1])
+      tag = split[0].toUpperCase()
+      callback(tag, tag == 'COMPILATION' ? Boolean(split[1]) : split[1])
     }
   } else if (this.type === 6) {
     var picture = common.readVorbisPicture(data)
@@ -6889,6 +6897,9 @@ module.exports = function (stream, callback, done) {
 
         /*jshint loopfunc:true */
         values.forEach(function (val) {
+          if (key == 'COMPILATION'){
+            val = Boolean(val)
+          }
           callback(key, val)
         })
       } else if (kind === 1) { // binary (probably artwork)
@@ -7029,7 +7040,9 @@ module.exports = function (stream, callback, done, readDuration) {
         var key = v.slice(0, idx).toUpperCase()
         var value = v.slice(idx + 1)
 
-        if (key === 'METADATA_BLOCK_PICTURE') {
+        if (key === 'COMPILATION') {
+          value = Boolean(value)
+        } else if (key === 'METADATA_BLOCK_PICTURE') {
           value = common.readVorbisPicture(new Buffer(value, 'base64'))
         }
 
